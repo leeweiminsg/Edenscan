@@ -1,0 +1,39 @@
+name: Node.js Package
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  create-envfile:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Make envfile
+      uses: SpicyPizza/create-envfile@v1
+      with:
+        envkey_NODE_ENV: ${{ secrets.NODE_ENV }}
+        envkey_PORT: ${{ secrets.PORT }}
+        envkey_DISCORD_CLIENT_TOKEN: ${{ secrets.DISCORD_CLIENT_TOKEN }}
+        envkey_MONGODB_URL: ${{ secrets.MONGODB_URL }}
+        envkey_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        directory: ./
+        file_name: .env
+  
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          registry-url: 'https://registry.npmjs.org'
+      # Skip post-install scripts here, as a malicious
+      # script could steal NODE_AUTH_TOKEN.
+      - run: npm install --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # `npm rebuild` will run all those post-install scripts for us.
+      - run: npm rebuild && npm run prepare --if-present
+      - run: npm run build --if-present
+      - run: npm test
